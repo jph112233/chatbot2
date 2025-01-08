@@ -38,7 +38,7 @@ BASE_AVATAR_URL = (
 
 
 def main():
-    st.set_page_config(page_title="Attic Breeze")
+    st.set_page_config(page_title="Chat with Us!")
 
 
     st.image("https://yt3.googleusercontent.com/ZVwaBIidQtbCYGmGeanRD2J7ik_srsXgvXUlkEOGIZZDoczmsrHWXiihUzcKoMmTXWMoSbs=w2276-fcrop64=1,00005a57ffffa5a8-k-c0xffffffff-no-nd-rj")
