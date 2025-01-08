@@ -1,56 +1,127 @@
-import streamlit as st
-from openai import OpenAI
+# Conversational Retrieval QA Chatbot, built using Langflow and Streamlit
+# Author: Gary A. Stafford
+# Date: 2023-07-28
+# Usage: streamlit run streamlit_app.py
+# Requirements: pip install streamlit streamlit_chat -Uq
 
-# Show title and description.
-st.title("💬 Chatbot")
-st.write(
-    "This is a simple chatbot that uses OpenAI's GPT-3.5 model to generate responses. "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
-    "You can also learn how to build this app step by step by [following our tutorial](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)."
+import logging
+import sys
+import time
+from typing import Optional
+import requests
+import streamlit as st
+from streamlit_chat import message
+
+log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+logging.basicConfig(format=log_format, stream=sys.stdout, level=logging.INFO)
+
+
+BASE_API_URL = st.secrets["base_api_url"]
+LANGFLOW_ID = st.secrets["langflow_id"]
+FLOW_ID = st.secrets["flow_id"]
+APPLICATION_TOKEN = st.secrets["application_token"]
+
+
+# You can tweak the flow by adding a tweaks dictionary
+# e.g {"OpenAI-XXXXX": {"model_name": "gpt-4"}}
+TWEAKS = {
+#    "ChatInput-px7mJ": {},
+#    "ParseData-iCfxn": {},
+#    "Prompt-uxud0": {},
+#    "SplitText-p1gJK": {},
+#    "OpenAIModel-FhydA": {},
+#    "ChatOutput-9FRtl": {}
+}
+BASE_AVATAR_URL = (
+    "https://raw.githubusercontent.com/garystafford-aws/static-assets/main/static"
 )
 
-# Ask user for their OpenAI API key via `st.text_input`.
-# Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
-# via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.text_input("OpenAI API Key", type="password")
-if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
-else:
 
-    # Create an OpenAI client.
-    client = OpenAI(api_key=openai_api_key)
+def main():
+    st.set_page_config(page_title="Attic Breeze")
 
-    # Create a session state variable to store the chat messages. This ensures that the
-    # messages persist across reruns.
+
+    st.image("https://www.atticbreeze.net/AB_webstore/squirrelcart/themes/ab-v5/images/store_logo.png")
+    st.write("")  # Adds a blank line
+    st.write("")  # Adds a blank line
+    st.markdown("##### Welcome!")
+    
+
+
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # Display the existing chat messages via `st.chat_message`.
     for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+        with st.chat_message(message["role"], avatar=message["avatar"]):
+            st.write(message["content"])
 
-    # Create a chat input field to allow the user to enter a message. This will display
-    # automatically at the bottom of the page.
-    if prompt := st.chat_input("What is up?"):
+    if prompt := st.chat_input("What can we help with?"):
+        # Add user message to chat history
+        st.session_state.messages.append(
+            {
+                "role": "user",
+                "content": prompt,
+                "avatar": f"{BASE_AVATAR_URL}/people-64px.png",
+            }
+        )
+        # Display user message in chat message container
+        with st.chat_message(
+            "user",
+            avatar=f"{BASE_AVATAR_URL}/people-64px.png",
+        ):
+            st.write(prompt)
 
-        # Store and display the current prompt.
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        # Generate a response using the OpenAI API.
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
+        # Display assistant response in chat message container
+        with st.chat_message(
+            "assistant",
+            avatar=f"{BASE_AVATAR_URL}/bartender-64px.png",
+        ):
+            message_placeholder = st.empty()
+            with st.spinner(text="Thinking..."):
+                assistant_response = generate_response(prompt)
+                message_placeholder.write(assistant_response)
+        # Add assistant response to chat history
+        st.session_state.messages.append(
+            {
+                "role": "assistant",
+                "content": assistant_response,
+                "avatar": f"{BASE_AVATAR_URL}/bartender-64px.png",
+            }
         )
 
-        # Stream the response to the chat using `st.write_stream`, then store it in 
-        # session state.
-        with st.chat_message("assistant"):
-            response = st.write_stream(stream)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+
+def run_flow(inputs: dict, flow_id: str, tweaks: Optional[dict] = None) -> dict:
+    #api_url = f"{BASE_API_URL}/{flow_id}"
+    api_url=f"{BASE_API_URL}/lf/{LANGFLOW_ID}/api/v1/run/{FLOW_ID}"
+#    payload = {"inputs": inputs}
+    payload = {
+        "input_value":  inputs ['question'],
+        "output_type": "chat",
+        "input_type": "chat",
+    }
+    if tweaks:
+        payload["tweaks"] = tweaks
+
+### Add authentication header=
+    headers = {"Authorization": "Bearer " + APPLICATION_TOKEN, "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    response = requests.post(api_url, json=payload, headers=headers)
+    return response.json()
+
+
+def generate_response(prompt):
+    logging.info(f"question: {prompt}")
+    inputs = {"question": prompt}
+    response = run_flow(inputs, flow_id=FLOW_ID, tweaks=TWEAKS)
+    try:
+#        logging.info(f"answer: {response['result']['answer']}")
+#        return response["result"]["answer"]
+        #st.write(response)  
+        return response ['outputs'][0]['outputs'][0]['results']['message']['text']
+
+    except Exception as exc:
+        logging.error(f"error: {response}")
+        return "Sorry, there was a problem finding an answer for you."
+
+
+if __name__ == "__main__":
+    main()
