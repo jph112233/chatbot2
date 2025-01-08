@@ -41,7 +41,7 @@ def main():
     st.set_page_config(page_title="Attic Breeze")
 
 
-    st.image("https://www.atticbreeze.net/AB_webstore/squirrelcart/themes/ab-v5/images/store_logo.png")
+    st.image("https://yt3.googleusercontent.com/ZVwaBIidQtbCYGmGeanRD2J7ik_srsXgvXUlkEOGIZZDoczmsrHWXiihUzcKoMmTXWMoSbs=w2276-fcrop64=1,00005a57ffffa5a8-k-c0xffffffff-no-nd-rj")
     st.write("")  # Adds a blank line
     st.write("")  # Adds a blank line
     st.markdown("##### Welcome!")
